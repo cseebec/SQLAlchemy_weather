@@ -44,7 +44,7 @@ def welcome():
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/<StartDate>"
+        f"/api/v1.0/EnterStartDateHere"
     )
 
 #Precipitation Route
@@ -129,13 +129,40 @@ def tobs():
 
 
 # Start Date 
-@app.route("/api/v1.0/<StartDate>s")
+@app.route("/api/v1.0/<StartDate>")
 def user_start_date(StartDate):
     """Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a user inputted start date"""
-    user_date = datetime.strptime(StartDate, '%Y-%m-%d')
-    
-    return f"You entered the date {user_date}"
-
+    try:
+        #Convert user date from string to date type
+        user_date = datetime.strptime(StartDate,'%Y-%m-%d')
+    except ValueError:
+        return("The value you entered does not follow the form year-month-day. An example is 2016-8-23. Make sure your date follows this form")
+    else:
+        #Start session
+        session = Session(engine)
+        # Find the latest date in dataframe 
+        most_recent_date = session.query(measurement).order_by(measurement.date.desc()).first()
+        most_rec_date = datetime.strptime(most_recent_date.date, '%Y-%m-%d')
+        
+        #Check if the date the user entered is within the dataframe
+        if user_date>most_rec_date:
+            #If the date the user ended is outside the dataframe dates let the user known
+            return f"The latest date in the dataset is {most_rec_date} you entered {user_date} which is later than this date. Please enter an earlier date"
+        else:
+            #Query data and gather temperatures in dataset after user inputted start date
+            temps_from_start_date= session.query(measurement.tobs).filter(measurement.date>=user_date).all()
+            temp_from_user_date = []
+            # Convert query results into a list
+            for i in range(0,len(temps_from_start_date)):
+                temp_from_user_date.append(temps_from_start_date[i].tobs)
+            #Print minimum, maximum and average temperatures.
+            return (
+                f"You entered a start date of {user_date}.<br/>"
+                f"The mimimum temperature after this date is {min(temp_from_user_date)}<br/>"
+                f"The maximum temperature after this date is {max(temp_from_user_date)}<br/>"
+                f"The average temperature after this date is {sum(temp_from_user_date) / len(temp_from_user_date)}"
+            )
+                 
 # Define main behavior
 if __name__ == '__main__':
     app.run(debug=True)
