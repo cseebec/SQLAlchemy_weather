@@ -44,7 +44,8 @@ def welcome():
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/EnterStartDateHere"
+        f"/api/v1.0/EnterStartDateHere.Example:2016-8-23<br/>"
+        f"/api/v1.0/EnterStartDateHere/EnterEndDateHere"
     )
 
 #Precipitation Route
@@ -67,6 +68,7 @@ def precipitation():
     results_prcp = session.query(measurement.date, measurement.prcp).filter(measurement.date>=year_ago_most_rec_date).\
         filter(measurement.date<most_rec_date).order_by(measurement.date).all()
 
+    #Close Session
     session.close()
     
     recent_year_prcp = []
@@ -89,6 +91,7 @@ def stations():
     results = session.query(measurement.station).group_by(measurement.station).\
         order_by(func.count(measurement.station).desc()).all()
 
+    #Close Session
     session.close()
 
     all_stations = list(np.ravel(results))
@@ -117,6 +120,7 @@ def tobs():
     results_tobs = session.query(measurement.date, measurement.tobs).filter(measurement.station == most_active_station.station).\
     filter(measurement.date>=year_ago_most_rec_date).filter(measurement.date<most_rec_date).all()
 
+    #Close Session
     session.close()
 
     recent_year_tobs = []
@@ -149,18 +153,88 @@ def user_start_date(StartDate):
             #If the date the user ended is outside the dataframe dates let the user known
             return f"The latest date in the dataset is {most_rec_date} you entered {user_date} which is later than this date. Please enter an earlier date"
         else:
+            session = Session(engine)
             #Query data and gather temperatures in dataset after user inputted start date
             temps_from_start_date= session.query(measurement.tobs).filter(measurement.date>=user_date).all()
             temp_from_user_date = []
             # Convert query results into a list
             for i in range(0,len(temps_from_start_date)):
                 temp_from_user_date.append(temps_from_start_date[i].tobs)
+            
+            #Close Session
+            session.close()
+
             #Print minimum, maximum and average temperatures.
             return (
                 f"You entered a start date of {user_date}.<br/>"
                 f"The mimimum temperature after this date is {min(temp_from_user_date)}<br/>"
                 f"The maximum temperature after this date is {max(temp_from_user_date)}<br/>"
                 f"The average temperature after this date is {sum(temp_from_user_date) / len(temp_from_user_date)}"
+            )
+
+#Enter Start Date and End Date
+@app.route("/api/v1.0/<StartDate>/<EndDate>")
+def user_dates(StartDate, EndDate):
+    """Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a user inputted start and end date"""
+    try:
+        #Convert user date from string to date type
+        StartDate = datetime.strptime(StartDate,'%Y-%m-%d')
+        EndDate = datetime.strptime(EndDate,'%Y-%m-%d')
+    except ValueError:
+        return (
+            f"One of the dates you entered does not follow the form year-month-day .<br>" 
+            f"An example is 2016-8-23. Make sure both your dates follow this form")
+    else:
+        #Start session
+        session = Session(engine)
+        # Find the latest date in dataframe 
+        most_recent_date = session.query(measurement).order_by(measurement.date.desc()).first()
+        most_rec_date = datetime.strptime(most_recent_date.date, '%Y-%m-%d')
+        earliest_date = session.query(measurement).order_by(measurement.date).first()
+        earliest_date = datetime.strptime(earliest_date.date, '%Y-%m-%d')
+        # Check if the end date is after the start date 
+        if EndDate<StartDate:
+            return (
+                f"You entered a start date of  {StartDate}.<br/>"
+                f"This is after the end date you entered  {EndDate}.<br/>"
+                f"Please enter a start date that is before the end date."
+            )
+
+        #Check if the start date the user entered is within the dataframe
+        if StartDate>most_rec_date:
+            #If the start date the user entered is outside the dataframe dates let the user known
+            return (
+                f"The latest date in the dataset is {most_rec_date}.<br/>"
+                f"You entered a date of {StartDate}. This means your date range is outside of the dataset<br/>"
+                f"Please enter an earlier start date and end date as well."
+            )
+
+        #Check if the end date the user entered is within the dataframe
+        if EndDate<earliest_date:
+            #If the end date the user entered is outside the dataframe dates let the user known
+            return (
+                f"The earliest date in the dataset is {earliest_date}.<br/>"
+                f"You entered an end date of {EndDate}. This means your date range is outside of the dataset<br/>"
+                f"Please enter a later end date and push the start date up as well."
+            )
+        else:
+            #Query data and gather temperatures in between the user inputted dates
+            temps_user= session.query(measurement.tobs).filter(measurement.date>=StartDate).\
+                filter(measurement.date<=EndDate).all()
+            temp_from_user_date = []
+            # Convert query results into a list
+            for i in range(0,len(temps_user)):
+                temp_from_user_date.append(temps_user[i].tobs)
+            
+            #Close Session
+            session.close()
+
+            #Print minimum, maximum and average temperatures.
+            return (
+                f"You entered a start date of {StartDate} and an end date {EndDate}.<br/>"
+                f"The mimimum temperature between these dates is {min(temp_from_user_date)}<br/>"
+                f"The maximum temperature between these dates is {max(temp_from_user_date)}<br/>"
+                f"The average temperature between these dates is {sum(temp_from_user_date) / len(temp_from_user_date)}"
             )
                  
 # Define main behavior
