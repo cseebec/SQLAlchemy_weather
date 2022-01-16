@@ -21,6 +21,13 @@ To install these libraries all you have to do is go into Git Bash (or whatever o
 
 ## Data Analysis
 ### Climate_starter.ipynb
-Overall the jupyter lab file utilizes SQLAlchemy to analyze on the datasets. Some of the results found include: a summary table of precipitation (in inches) during the last year recorded in the dataset and the maximum, minimum, and average temperature of the most active station. 
+Overall the jupyter lab file utilizes SQLAlchemy to analyze on the datasets. Some of the results found include: a summary table of precipitation (in inches) during the last year recorded in the dataset and the maximum, minimum, and average temperature of the most active station. Diving further into the most active station a histogram is created of the frequency that it recorded temperatures. 
 
-Insert Images
+#### Precipitation Table
+![](precipitation_table.JPG)
+
+#### Max, Min and Average Temp of Most Active Station 
+![](station_temp.JPG)
+
+#### Temperature Histogram
+![](histogram.JPG)
